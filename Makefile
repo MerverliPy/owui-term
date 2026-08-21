@@ -1,9 +1,11 @@
 SHELL := /bin/sh
 GO ?= go
 
-.PHONY: all build test lint fmt clean
+.PHONY: all build test lint fmt check clean
 
 all: test
+
+check: fmt lint test build
 
 build:
 	$(GO) build ./...
