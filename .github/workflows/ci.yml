@@ -39,21 +39,24 @@ jobs:
           go-version: "1.23.x"
       - name: Start pinned Open-WebUI ${{ matrix.owui }}
         run: |
+          docker pull ghcr.io/open-webui/open-webui:${{ matrix.owui }}
           docker run -d --name owui -p 3000:3000 \
             -e ENABLE_SIGNUP=true \
             -e WEBUI_SECRET_KEY=owui-term-ci-secret \
             ghcr.io/open-webui/open-webui:${{ matrix.owui }}
+          # First boot downloads embedding models etc.; give it up to 15 min.
           for i in $(seq 1 60); do
             if curl -sf http://localhost:3000/api/version >/dev/null 2>&1; then
-              echo "Open-WebUI ${{ matrix.owui }} up after ${i}0s"
+              echo "Open-WebUI ${{ matrix.owui }} ready after ~$((i * 15))s"
               break
             fi
-            sleep 10
+            echo "waiting for Open-WebUI ${{ matrix.owui }} (attempt $i/60)..."
+            sleep 15
           done
-          curl -sf http://localhost:3000/api/version || { docker logs owui | tail -40; exit 1; }
+          curl -sf http://localhost:3000/api/version || { echo "CONTAINER LOGS:"; docker logs owui 2>&1 | tail -40; exit 1; }
       - name: Provision a user (first signup = admin; JWT covers the documented surface)
         run: |
-          for i in $(seq 1 12); do
+          for i in $(seq 1 24); do
             BODY=$(curl -s -X POST http://localhost:3000/api/v1/auths/signup \
               -H 'Content-Type: application/json' \
               -d '{"name":"ci","email":"ci@example.com","password":"ci-password-123"}')
