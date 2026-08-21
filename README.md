@@ -2,7 +2,7 @@
 
 Terminal client for [Open-WebUI](https://openwebui.com) — chat with your self-hosted models from the terminal. **Server state is the source of truth**: chats you start or resume here persist on the server, exactly like the web UI.
 
-> 🚧 Early prototype — status: Phase 2 (scaffold) complete, Phase 3 (API client) next. See [`PHASES.md`](PHASES.md) for the plan; design rationale lives in the (private) council memo.
+> 🚧 Early prototype — status: Phase 3 (API client + SSE parser) complete, Phase 4 (weekend acceptance slice) next. See [`PHASES.md`](PHASES.md) for the plan; design rationale lives in the (private) council memo.
 
 ## Build
 

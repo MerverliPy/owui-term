@@ -9,7 +9,7 @@ generated_from:
 locked_constraints: concept-native, stack-go-bubbletea, name-owui-term, weekend-acceptance, api-documented-only, token-safety, roadmap-cutlines, demand-gate
 active_milestone: Weekend prototype (create + reload one server-persisted chat)
 milestone_state: PLANNED
-next_action: Phase 3 — API client layer + SSE parser
+next_action: Phase 4 — weekend acceptance slice (TUI)
 -->
 
 > **WARNING:** No AGENTS.md / README.md / ADRs exist. Direction is derived solely from `.brainstorm/DECISION-MEMO.md` (council decision record, 2026-08-21). Locked constraints D1–D8 below map to memo sections; they are binding for every phase.
@@ -61,14 +61,20 @@ next_action: Phase 3 — API client layer + SSE parser
 
 *Done = `go build ./...` and `go vet ./...` clean; config tests green.*
 
-## Phase 3: API client layer + SSE parser <!-- PENDING -->
+## Phase 3: API client layer + SSE parser <!-- COMPLETE -->
 *Goal: the highest-risk component — a defensive, documented-surface-only client with fixture-tested SSE parsing (D5).*
 
-- [ ] `internal/openwebui` client: base URL, `Authorization: Bearer`, timeouts, JSON helpers — documented endpoints only (D5).
-- [ ] Typed endpoints matching `docs/api-notes.md`: `GET /api/models`, `POST /api/v1/chats/new`, `GET /api/v1/chats/list`, `GET /api/v1/chats/{id}`, streamed `POST /api/chat/completions`.
-- [ ] Defensive SSE parser in `internal/openwebui/sse`: line-buffered, tolerant of fragmented chunks, handles `data:` JSON events incl. `[DONE]`, usage, error events, tool deltas (ignore-unknown), never blocks on incomplete lines.
-- [ ] Fixture-driven parser tests: complete lines, fragmented lines, usage chunks, malformed events, error events, `[DONE]` — table tests against captured fixtures in `internal/openwebui/testdata/`.
-- [ ] Graceful degradation: if chats endpoints fail, fall back to completions-only mode (models + stream, no session sync) with a clear user notice (D5).
+> **Phase 3 outcome (2026-08-21):** complete. `go test ./internal/openwebui/...` green (17 tests: 8 client + 9 SSE), `go vet`/`gofmt -l .` clean.
+> - `internal/openwebui`: typed documented endpoints only (D5) — `GET /api/models`, `POST /api/v1/chats/new`, `GET /api/v1/chats/list`, `GET /api/v1/chats/{id}`, streamed `POST /api/chat/completions`.
+> - Client is httptest-tested; `HTTPError` carries status/path so Phase 4 can branch; `ChatUnavailable()` is the D5 degradation signal.
+> - `internal/openwebui/sse`: one event per `data:` line (the framing verified on live 0.11.0), tolerant of fragmented reads, never dispatches an incomplete line. Captured fixture + fragmented/malformed/error/`[DONE]`/comment tests. *(The blank-line-separator model was corrected against the real fixture, which uses newline-delimited `data:` lines.)*
+> - Graceful degradation: typed `HTTPError` + `ChatUnavailable` helper ready; TUI wiring lands in Phase 4.
+
+- [x] `internal/openwebui` client: base URL, `Authorization: Bearer`, timeouts, JSON helpers — documented endpoints only (D5).
+- [x] Typed endpoints matching `docs/api-notes.md`: `GET /api/models`, `POST /api/v1/chats/new`, `GET /api/v1/chats/list`, `GET /api/v1/chats/{id}`, streamed `POST /api/chat/completions`.
+- [x] Defensive SSE parser in `internal/openwebui/sse`: line-buffered, tolerant of fragmented chunks, handles `data:` JSON events incl. `[DONE]`, usage, error events, tool deltas (ignore-unknown), never blocks on incomplete lines.
+- [x] Fixture-driven parser tests: complete lines, fragmented lines, usage chunks, malformed events, error events, `[DONE]` — table tests against captured fixtures in `internal/openwebui/testdata/`.
+- [x] Graceful degradation: if chats endpoints fail, fall back to completions-only mode (models + stream, no session sync) with a clear user notice (D5). *(Signal ready via `ChatUnavailable`; TUI notice wired in Phase 4.)*
 
 *Done = `go test ./internal/openwebui/...` green (incl. SSE fixtures); `go vet` clean.*
 
