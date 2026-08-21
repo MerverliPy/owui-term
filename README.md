@@ -2,7 +2,7 @@
 
 Terminal client for [Open-WebUI](https://openwebui.com) — chat with your self-hosted models from the terminal. **Server state is the source of truth**: chats you start or resume here persist on the server, exactly like the web UI.
 
-> 🚧 Early prototype — status: Phase 4 (weekend acceptance slice) complete — **create + stream + reload verified against a live Open-WebUI instance**. Next: Phase 5 (validation). See [`PHASES.md`](PHASES.md) for the plan; design rationale lives in the (private) council memo.
+> 🚧 Prototype slice: Phase 5 (validation) now active — **create + stream + reload verified against a live Open-WebUI instance**, with quality gates and demand validation docs started. See [`PHASES.md`](PHASES.md) and `docs/validation.md` for plan + verdict.
 
 ## Build
 
@@ -12,17 +12,24 @@ Requires Go ≥ 1.23. `owui-term --version` reports the build version.
 go build -o owui-term ./cmd/owui-term
 ```
 
-## Install (not yet available)
+## Install
+
+From source:
 
 ```sh
-go install <module-path>/cmd/owui-term@latest   # placeholder
+# local, fast path
+go install ./cmd/owui-term
+
+# or explicit build
+go build -o owui-term ./cmd/owui-term
 ```
 
-## Quickstart (planned)
+## Quickstart
 
 ```sh
 export OWUI_URL=http://localhost:3000
 export OWUI_TOKEN=sk-...
+# then run
 owui-term
 ```
 
@@ -34,8 +41,11 @@ owui-term
 - [`docs/supported-versions.md`](docs/supported-versions.md) — version pinning policy
 - [`docs/environment.md`](docs/environment.md) — verified dev environment
 - [`docs/api-setup.md`](docs/api-setup.md) — authentication setup
+- [`docs/dogfood.md`](docs/dogfood.md) — owner dogfooding log (1–2 week D8 validation trial)
+- [`docs/validation.md`](docs/validation.md) — quality gates and go/no-go verdict record
 - [`.brainstorm/DECISION-MEMO.md`](.brainstorm/DECISION-MEMO.md) — council decision memo
 
 ## License
 
-MIT (to be added).
+MIT.
+

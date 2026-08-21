@@ -8,8 +8,8 @@ generated_from:
   - .brainstorm/DECISION-MEMO.md
 locked_constraints: concept-native, stack-go-bubbletea, name-owui-term, weekend-acceptance, api-documented-only, token-safety, roadmap-cutlines, demand-gate
 active_milestone: Weekend prototype (create + reload one server-persisted chat)
-milestone_state: PLANNED
-next_action: Phase 5 — validation & demand gate
+milestone_state: ACCEPTED
+next_action: D8 demand validation running — 1–2 wk owner dogfood, ~5-operator trial, 30-day traction; re-run docs/validation.md verdict → gates v1 M1
 -->
 
 > **WARNING:** No AGENTS.md / README.md / ADRs exist. Direction is derived solely from `.brainstorm/DECISION-MEMO.md` (council decision record, 2026-08-21). Locked constraints D1–D8 below map to memo sections; they are binding for every phase.
@@ -94,14 +94,16 @@ next_action: Phase 5 — validation & demand gate
 
 *Done = acceptance test passes against the pinned instance; result documented with captured evidence.*
 
-## Phase 5: Validation & demand gate <!-- PENDING -->
+## Phase 5: Validation & demand gate <!-- COMPLETE --> <!-- PHASE_TIME: ~600s -->
 *Goal: quality bar + kick off D8 validation; record the go/no-go verdict that gates all v1 work.*
 
-- [ ] Full checks: `go test ./...`, `go vet ./...`, `gofmt -l .` clean; add `make test` / `make lint` / `make build` targets.
-- [ ] Repo hygiene: complete README (quickstart via `go install`), LICENSE (MIT), final `.gitignore`.
-- [ ] Start the 1–2 week owner dogfooding log (`docs/dogfood.md`); prepare the task-based trial pack (~5 Open-WebUI operators: create in TUI → reload a browser chat → resume later) with the go/no-go threshold from D8.
-- [ ] Optional public step: rename repo to `owui-term`, tag `v0.1.0`, watch ~30-day traction; record signal in `docs/validation.md`.
-- [ ] Write the `docs/validation.md` verdict: **STICKY** (proceed to v1 M1 per D7) or **NOT STICKY** (collapse to thin completions client or stop, per D8).
+> **Phase 5 outcome (2026-08-21):** complete — quality bar verified green this session: `go test ./...`, `go vet ./...`, `gofmt -l .` clean; `make test` / `make lint` / `make build` all exit 0. Repo hygiene done (README quickstart, MIT LICENSE, final `.gitignore`). D8 validation started: `docs/dogfood.md` (owner log + ~5-operator trial pack with go/no-go threshold) and interim verdict recorded in `docs/validation.md` (**NOT STICKY — awaiting demand proof**; re-run after the 1–2 wk window per D8). v1 M1 remains gated. Optional public step deferred: standalone repo `MerverliPy/owui-term` exists on GitHub (main @ Phase 4) — tagging `v0.1.0` + push is an owner publish decision; the 30-day traction window is time-gated. Handoff: `records/phase-5-handoff.md`.
+
+- [x] Full checks: `go test ./...`, `go vet ./...`, `gofmt -l .` clean; add `make test` / `make lint` / `make build` targets.
+- [x] Repo hygiene: complete README (quickstart via `go install`), LICENSE (MIT), final `.gitignore`.
+- [x] Start the 1–2 week owner dogfooding log (`docs/dogfood.md`); prepare the task-based trial pack (~5 Open-WebUI operators: create in TUI → reload a browser chat → resume later) with the go/no-go threshold from D8.
+- [-] Optional public step: ~~rename repo to `owui-term`~~ (standalone repo exists: `MerverliPy/owui-term`), tag `v0.1.0`, watch ~30-day traction; record signal in `docs/validation.md`. <!-- DEFERRED: v0.1.0 tag + push is an owner publish decision; 30-day traction window is time-gated (D8c) -->
+- [x] Write the `docs/validation.md` verdict: **STICKY** (proceed to v1 M1 per D7) or **NOT STICKY** (collapse to thin completions client or stop, per D8).
 
 *Done = all checks green; validation started; verdict recorded.*
 
