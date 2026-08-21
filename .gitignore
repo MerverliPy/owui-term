@@ -1,0 +1,28 @@
+# Internal council / planning notes — not for public release
+.brainstorm/
+
+# Binaries
+owui-term
+owui-term.exe
+*.exe
+*.out
+*.test
+
+# Build artifacts
+dist/
+bin/
+
+# Go
+/vendor/  # remove this line if vendoring is intentional
+*.prof
+
+# Local environment / secrets
+.env
+.env.*
+*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
