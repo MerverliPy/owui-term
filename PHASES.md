@@ -9,7 +9,7 @@ generated_from:
 locked_constraints: concept-native, stack-go-bubbletea, name-owui-term, weekend-acceptance, api-documented-only, token-safety, roadmap-cutlines, demand-gate
 active_milestone: Weekend prototype (create + reload one server-persisted chat)
 milestone_state: PLANNED
-next_action: Phase 4 — weekend acceptance slice (TUI)
+next_action: Phase 5 — validation & demand gate
 -->
 
 > **WARNING:** No AGENTS.md / README.md / ADRs exist. Direction is derived solely from `.brainstorm/DECISION-MEMO.md` (council decision record, 2026-08-21). Locked constraints D1–D8 below map to memo sections; they are binding for every phase.
@@ -78,14 +78,19 @@ next_action: Phase 4 — weekend acceptance slice (TUI)
 
 *Done = `go test ./internal/openwebui/...` green (incl. SSE fixtures); `go vet` clean.*
 
-## Phase 4: Weekend acceptance slice (TUI) <!-- PENDING -->
+## Phase 4: Weekend acceptance slice (TUI) <!-- COMPLETE -->
 *Goal: the exact acceptance test from D4 — prove the Open-WebUI-native thesis end-to-end.*
 
-- [ ] Model list/select view backed by `GET /api/models`, with loading/error states.
-- [ ] Create chat via `POST /api/v1/chats/new`; retain the returned `chat_id` for the session.
-- [ ] Chat view: submit one prompt to streamed completions bound to that `chat_id`; render streamed text incrementally (plain text is acceptable this phase — markdown polish is excluded per D4).
-- [ ] Refresh list (`GET /api/v1/chats/list`) and open/reload a chat (`GET /api/v1/chats/{id}`) after a fresh process start.
-- [ ] Run the acceptance test end-to-end and record the result in `docs/acceptance-test.md`: env config → model select → create → stream → refresh → reload → verify user+assistant messages persist and are visible in the web UI.
+> **Phase 4 outcome (2026-08-21):** complete. Acceptance test **PASSED** end-to-end against live v0.11.0 (`docs/acceptance-test.md`); TUI verified rendering live (model select, 10 models).
+> - TUI (bubbletea): loading → model select → chat list (new/open) → chat view with incremental SSE streaming (fragmented-safe). Injectable `chatClient` interface (mock-tested, 8 UI tests).
+> - **Critical persistence finding:** `POST /api/chat/completions` with `chat_id` does NOT save the exchange on 0.11.0. Added documented write-back `POST /api/v1/chats/{id}` (`ChatForm`) after each stream — this is what makes messages appear in the web UI (D1). Also: `/api/v1/chats/list` returns a bare array; `created_at`/`updated_at` are numeric (decoded tolerantly).
+> - New client method `UpdateChat`; `ChatMeta.Messages` added; `ChatListResponse` removed (array shape).
+
+- [x] Model list/select view backed by `GET /api/models`, with loading/error states.
+- [x] Create chat via `POST /api/v1/chats/new`; retain the returned `chat_id` for the session.
+- [x] Chat view: submit one prompt to streamed completions bound to that `chat_id`; render streamed text incrementally (plain text is acceptable this phase — markdown polish is excluded per D4).
+- [x] Refresh list (`GET /api/v1/chats/list`) and open/reload a chat (`GET /api/v1/chats/{id}`) after a fresh process start.
+- [x] Run the acceptance test end-to-end and record the result in `docs/acceptance-test.md`: env config → model select → create → stream → refresh → reload → verify user+assistant messages persist and are visible in the web UI. *(Persistence via `POST /api/v1/chats/{id}` write-back — see acceptance doc.)*
 
 *Done = acceptance test passes against the pinned instance; result documented with captured evidence.*
 

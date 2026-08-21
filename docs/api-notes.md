@@ -55,6 +55,13 @@ data: [DONE]
 | `GET /api/v1/chats/search` | Search | spec |
 | `GET /api/v1/chats/all` | All chats | spec |
 
+## ⚠️ Persistence (verified 0.11.0 — D1/D4 critical)
+
+- `POST /api/chat/completions` with `chat_id` does **NOT** save the exchange into the chat on 0.11.0. A later `GET /api/v1/chats/{id}` shows only `chat:{title,models}` (no messages).
+- To persist a conversation (so it appears in the web UI), the client must **write it back** via `POST /api/v1/chats/{id}` with a `ChatForm` payload `{chat:{title,models,messages:[{role,content},…]}}` (same schema as `/new`). Verified round-trip: after write-back, `GET /api/v1/chats/{id}` returns the messages.
+- `GET /api/v1/chats/list` returns a **bare JSON array** of summaries (`id,title,updated_at,created_at,last_read_at,snippet,active`) — not `{items:[…]}`. (Client decodes `[]Chat` directly.)
+- `created_at` / `updated_at` are **numeric unix timestamps** on 0.11.0 — decode tolerantly (the client uses `json.RawMessage`).
+
 ## Other surfaces (later phases)
 
 `/api/v1/knowledge/*` (RAG), `/api/v1/files/*` (async processing + `GET /api/v1/files/{id}/process/status`), `/api/v1/tools/*`, `/api/v1/models/*` (declarative mgmt), `/api/v1/images/*`, `/api/v1/audio/*`.

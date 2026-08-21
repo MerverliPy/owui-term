@@ -66,13 +66,14 @@ func (c *Client) CreateChat(ctx context.Context, title string, modelIDs []string
 	return &chat, nil
 }
 
-// ListChats returns the paged chat list (GET /api/v1/chats/list).
+// ListChats returns the chat list (GET /api/v1/chats/list). The live instance
+// returns a bare JSON array of chat summaries (id/title/updated_at/snippet/…).
 func (c *Client) ListChats(ctx context.Context) ([]Chat, error) {
-	var out ChatListResponse
-	if err := c.getJSON(ctx, "/api/v1/chats/list", &out); err != nil {
+	var chats []Chat
+	if err := c.getJSON(ctx, "/api/v1/chats/list", &chats); err != nil {
 		return nil, err
 	}
-	return out.Items, nil
+	return chats, nil
 }
 
 // GetChat fetches one chat by id (GET /api/v1/chats/{id}).
@@ -82,6 +83,19 @@ func (c *Client) GetChat(ctx context.Context, id string) (*Chat, error) {
 		return nil, err
 	}
 	return &chat, nil
+}
+
+// UpdateChat persists the full chat payload (title, models, messages) to the
+// server (POST /api/v1/chats/{id}). On the pinned instance, the OpenAI-
+// compatible /api/chat/completions does NOT save the exchange into the chat;
+// this documented write-back is what makes messages appear in the web UI
+// (D1 server-state-is-source-of-truth / D4 reload).
+func (c *Client) UpdateChat(ctx context.Context, id string, meta ChatMeta) (*Chat, error) {
+	var out Chat
+	if err := c.postJSON(ctx, "/api/v1/chats/"+url.PathEscape(id), NewChatRequest{Chat: meta}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // StreamCompletions streams an OpenAI-compatible completions response (POST

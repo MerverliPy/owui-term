@@ -33,13 +33,13 @@ type CompletionsRequest struct {
 
 // Chat is a server-side chat/session — the source of truth (D1).
 type Chat struct {
-	ID        string `json:"id"`
-	UserID    string `json:"user_id"`
-	Title     string `json:"title"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
-	Archived  bool   `json:"archived"`
-	Pinned    bool   `json:"pinned"`
+	ID        string          `json:"id"`
+	UserID    string          `json:"user_id"`
+	Title     string          `json:"title"`
+	CreatedAt json.RawMessage `json:"created_at"` // numeric on live 0.11.0 (D5 tolerant)
+	UpdatedAt json.RawMessage `json:"updated_at"` // numeric on live 0.11.0 (D5 tolerant)
+	Archived  bool            `json:"archived"`
+	Pinned    bool            `json:"pinned"`
 	// Chat preserves the full message-history payload verbatim for later phases.
 	Chat json.RawMessage `json:"chat"`
 }
@@ -50,16 +50,11 @@ type NewChatRequest struct {
 	Chat ChatMeta `json:"chat"`
 }
 
-// ChatMeta is the chat metadata for creation.
+// ChatMeta is the chat metadata carried in the ChatForm payload (POST
+// /api/v1/chats/new and POST /api/v1/chats/{id}). Messages is omitted on
+// creation and populated when persisting a conversation (D1/D4).
 type ChatMeta struct {
-	Title  string   `json:"title"`
-	Models []string `json:"models"`
-}
-
-// ChatListResponse is the envelope for GET /api/v1/chats/list.
-type ChatListResponse struct {
-	Total    int64  `json:"total"`
-	Page     int64  `json:"page"`
-	PageSize int64  `json:"page_size"`
-	Items    []Chat `json:"items"`
+	Title    string    `json:"title"`
+	Models   []string  `json:"models"`
+	Messages []Message `json:"messages,omitempty"`
 }

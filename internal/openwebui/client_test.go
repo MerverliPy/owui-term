@@ -73,7 +73,7 @@ func TestListChats(t *testing.T) {
 			t.Errorf("path = %q", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"total":2,"page":1,"page_size":50,"items":[{"id":"a"},{"id":"b"}]}`)
+		io.WriteString(w, `[{"id":"a","title":"one","updated_at":123},{"id":"b","title":"two"}]`)
 	})
 
 	chats, err := c.ListChats(context.Background())
@@ -100,6 +100,34 @@ func TestGetChat(t *testing.T) {
 	}
 	if chat.ID != "chat-42" || chat.Title != "hi" {
 		t.Errorf("chat = %+v", chat)
+	}
+}
+
+func TestUpdateChat(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", r.Method)
+		}
+		if r.URL.Path != "/api/v1/chats/c1" {
+			t.Errorf("path = %q", r.URL.Path)
+		}
+		var body NewChatRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if body.Chat.Title != "t" || len(body.Chat.Messages) != 2 || body.Chat.Messages[1].Content != "ok" {
+			t.Errorf("payload = %+v", body.Chat)
+		}
+		io.WriteString(w, `{"id":"c1","title":"t"}`)
+	})
+
+	_, err := c.UpdateChat(context.Background(), "c1", ChatMeta{
+		Title:    "t",
+		Models:   []string{"m1"},
+		Messages: []Message{{Role: "user", Content: "hi"}, {Role: "assistant", Content: "ok"}},
+	})
+	if err != nil {
+		t.Fatalf("UpdateChat: %v", err)
 	}
 }
 
