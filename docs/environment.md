@@ -12,6 +12,7 @@ Phase 1 reconnaissance record.
 | Ollama | `http://localhost:11434` (up) | ✅ |
 | Swagger/OpenAPI | served at `/docs` + `/openapi.json` on this instance | ✅ |
 | `OWUI_URL` / `OWUI_TOKEN` env vars | not set yet | ✅ (to be set) |
+| Go module floor | `go 1.23.0` in `go.mod` (Phase 2) — charmbracelet `golang.org/x/*` transitives require ≥1.23; `go 1.22.2` auto-downloads the 1.23 toolchain | ✅ |
 
 Notes:
 - Auth is required for `/api/models` (401 without token) — all API probes need a Bearer token.

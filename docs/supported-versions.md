@@ -8,3 +8,9 @@ Policy (D5): pin **one current minor + one prior**, test against both, degrade g
 | **0.10.2** | ✅ Selected as prior minor (latest 0.10.x, released 2026-07-01) | Add a pinned 0.10.2 instance to CI for smoke-testing the compatibility matrix |
 
 Client behavior on unsupported versions: clear "unsupported Open-WebUI version" notice + best-effort completions-only mode (D5), never silent failure.
+
+## owui-term client (Phase 2)
+
+- Build-time version: `-ldflags "-X main.version=v0.1.0"`; report via `owui-term --version` (default `dev`).
+- Go floor: `go 1.23.0` (charmbracelet `golang.org/x/*` transitive deps).
+- Pinned UI deps (compatible with Go ≥1.23): bubbletea v1.2.4, lipgloss v1.1.0, bubbles v0.20.0. glamour v0.9.1 is added in Phase 4 when markdown rendering lands.

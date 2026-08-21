@@ -9,7 +9,7 @@ generated_from:
 locked_constraints: concept-native, stack-go-bubbletea, name-owui-term, weekend-acceptance, api-documented-only, token-safety, roadmap-cutlines, demand-gate
 active_milestone: Weekend prototype (create + reload one server-persisted chat)
 milestone_state: PLANNED
-next_action: Phase 1 — verify a live Open-WebUI instance against a pinned version and document the API surface
+next_action: Phase 3 — API client layer + SSE parser
 -->
 
 > **WARNING:** No AGENTS.md / README.md / ADRs exist. Direction is derived solely from `.brainstorm/DECISION-MEMO.md` (council decision record, 2026-08-21). Locked constraints D1–D8 below map to memo sections; they are binding for every phase.
@@ -45,14 +45,19 @@ next_action: Phase 1 — verify a live Open-WebUI instance against a pinned vers
 
 *Done = all Phase 1 checklist items complete; artifacts exist under `docs/`.*
 
-## Phase 2: Project scaffold (Go + bubbletea) <!-- PENDING -->
+## Phase 2: Project scaffold (Go + bubbletea) <!-- COMPLETE -->
 *Goal: a compiling, configurable skeleton with the build hygiene the later phases rely on.*
 
-- [ ] `go mod init` (module `owui-term`); create `cmd/owui-term/main.go`; `go build ./...` passes.
-- [ ] Add bubbletea, lipgloss, bubbles, glamour (versions pinned in `go.mod`); a minimal Model/Update/View skeleton compiles and renders a placeholder screen.
-- [ ] Config layer per D6: read `OWUI_URL` / `OWUI_TOKEN` env vars in `internal/config`; unit tests for missing/invalid config produce clear, actionable errors.
-- [ ] Basic loading/error UI states (D4 requires basic error states in the slice) and a `.gitignore` covering build artifacts and local secrets.
-- [ ] `--version` flag and a supported-versions note wired into `docs/supported-versions.md` and README.
+> **Phase 2 outcome (2026-08-21):** complete. `go build ./...`, `go vet ./...`, `gofmt -l` clean; 7 config unit tests green; `--version` and all config error paths verified on the built binary.
+> - Module `owui-term`; pinned Go ≥1.23 (charmbracelet `golang.org/x/*` transitives require it; 1.22.2 auto-downloads the 1.23 toolchain). Pinned deps: bubbletea v1.2.4, lipgloss v1.1.0, bubbles v0.20.0.
+> - **glamour deferred to Phase 4** — not imported yet (markdown polish is excluded from the weekend slice), so `go mod tidy` correctly drops it until then.
+> - Structure: `cmd/owui-term/main.go` (entry + `--version`), `internal/config` (D6 env config + tests), `internal/ui` (Model/Update/View skeleton with loading/ready/error states, spinner). Token never rendered (D6).
+
+- [x] `go mod init` (module `owui-term`); create `cmd/owui-term/main.go`; `go build ./...` passes.
+- [x] Add bubbletea, lipgloss, bubbles, glamour (versions pinned in `go.mod`); a minimal Model/Update/View skeleton compiles and renders a placeholder screen. *(glamour added in Phase 4 — unused until markdown rendering)*
+- [x] Config layer per D6: read `OWUI_URL` / `OWUI_TOKEN` env vars in `internal/config`; unit tests for missing/invalid config produce clear, actionable errors.
+- [x] Basic loading/error UI states (D4 requires basic error states in the slice) and a `.gitignore` covering build artifacts and local secrets.
+- [x] `--version` flag and a supported-versions note wired into `docs/supported-versions.md` and README.
 
 *Done = `go build ./...` and `go vet ./...` clean; config tests green.*
 
