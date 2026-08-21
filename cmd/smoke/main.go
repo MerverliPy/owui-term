@@ -5,10 +5,11 @@
 //
 //	OWUI_URL=http://localhost:3000 OWUI_TOKEN=<jwt-or-api-key> go run ./cmd/smoke
 //
-// It exercises the full documented chat CRUD + write-back round-trip but NOT
-// completions (CI containers have no inference backend; the SSE parser is
-// covered by fixture tests). Prints [PASS]/[FAIL] per step, exits non-zero on
-// failure.
+// It exercises the full documented chat CRUD + write-back round-trip plus a
+// bounded GET /api/models + POST /api/chat/completions (stream) probe that runs
+// only when a model is present and SKIPs explicitly otherwise (CI containers
+// have no inference backend; the SSE parser is covered by fixture tests).
+// Prints [PASS]/[FAIL]/[SKIP] per step, exits non-zero on failure.
 package main
 
 import (
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"owui-term/internal/openwebui"
+	"owui-term/internal/openwebui/sse"
 )
 
 func main() {
@@ -95,7 +97,27 @@ func main() {
 		}
 	}
 
-	// 6. Cleanup.
+	// 6. Models + bounded completions probe (D5). GET /api/models is a documented
+	// surface; POST /api/chat/completions is the primary inference surface. CI
+	// containers have no inference backend (0 models), so the streaming probe
+	// runs only when a model is present and SKIPs explicitly otherwise — never
+	// silent (D5). When a model is present the probe is falsifiable: zero data
+	// chunks or a missing [DONE] sentinel is a hard failure, not a pass.
+	models, err := client.Models(ctx)
+	ok("GET /api/models", err)
+	if err == nil && len(models) > 0 {
+		switch res := runProbe(ctx, models[0].ID, client.StreamCompletions); {
+		case res.failReason != "":
+			fmt.Printf("[FAIL] %s\n", res.failReason)
+			failures++
+		default:
+			fmt.Printf("[PASS] POST /api/chat/completions (stream) -> %d SSE chunks, [DONE]=true\n", res.chunks)
+		}
+	} else if err == nil {
+		fmt.Println("[SKIP] POST /api/chat/completions (stream): no inference backend (0 models), surface unverified on this instance")
+	}
+
+	// 7. Cleanup.
 	ok("DELETE /api/v1/chats/{id}", client.DeleteChat(ctx, chat.ID))
 
 	exit(failures)
@@ -108,6 +130,50 @@ func exit(failures int) {
 	}
 	fmt.Println("SMOKE PASSED")
 	os.Exit(0)
+}
+
+// maxProbeChunks bounds the streaming probe so a chatty model can't stall CI.
+const maxProbeChunks = 64
+
+// probeResult is the outcome of the completions streaming probe.
+type probeResult struct {
+	chunks     int
+	done       bool
+	failReason string // non-empty ⇒ the probe is a hard failure, not a pass
+}
+
+// runProbe opens a bounded streaming completion against modelID and verifies
+// the server delivered at least one data chunk and the [DONE] sentinel (D5
+// never-silent; keeps [PASS] falsifiable). A stream that opens but produces no
+// chunks or never closes cleanly is a hard failure, not a pass. The stream
+// callback is injectable so the 0-chunk / missing-[DONE] / open-error branches
+// are unit-testable without a server.
+func runProbe(ctx context.Context, modelID string, stream func(context.Context, openwebui.CompletionsRequest) (*sse.Reader, error)) probeResult {
+	req := openwebui.CompletionsRequest{
+		Model:    modelID,
+		Messages: []openwebui.Message{{Role: "user", Content: "Reply with exactly three words."}},
+	}
+	rd, err := stream(ctx, req)
+	if err != nil {
+		return probeResult{failReason: fmt.Sprintf("POST /api/chat/completions (stream): %v", err)}
+	}
+	chunks, done := 0, false
+	for chunks < maxProbeChunks {
+		ev, err := rd.Next()
+		if err != nil {
+			break
+		}
+		if ev.IsDone() {
+			done = true
+			break
+		}
+		chunks++
+	}
+	if chunks == 0 || !done {
+		return probeResult{chunks: chunks, done: done,
+			failReason: fmt.Sprintf("POST /api/chat/completions (stream): got %d chunks, [DONE]=%t (unexpected stream)", chunks, done)}
+	}
+	return probeResult{chunks: chunks, done: true}
 }
 
 // hasRoles reports whether both roles are present in a chat's persisted

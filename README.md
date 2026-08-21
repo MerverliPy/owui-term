@@ -6,7 +6,7 @@ Terminal client for [Open-WebUI](https://openwebui.com) — chat with your self-
 
 ## Build
 
-Requires Go ≥ 1.23 and an Open-WebUI instance you can reach (verified: **v0.11.0**; v0.10.2 not yet verified) with API keys enabled. `owui-term --version` reports the build version.
+Requires Go ≥ 1.23 and an Open-WebUI instance you can reach (verified: **v0.11.0**; **v0.10.2** chat CRUD via CI smoke, completions unverified — see [`docs/supported-versions.md`](docs/supported-versions.md) for the pin matrix) with API keys enabled. `owui-term --version` reports the build version.
 
 ```sh
 go build -o owui-term ./cmd/owui-term

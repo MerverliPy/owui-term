@@ -25,7 +25,8 @@ jobs:
   # D5 compatibility matrix: smoke the documented API surface against the
   # pinned current minor (0.11.0) and the prior minor (0.10.2). No inference
   # backend is needed for the chat CRUD + write-back round-trip (cmd/smoke);
-  # the SSE parser is covered by fixture tests locally.
+  # the models/completions probe SKIPs explicitly when the container has 0
+  # models, and the SSE parser is covered by fixture tests locally.
   smoke:
     strategy:
       fail-fast: false

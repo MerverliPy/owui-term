@@ -10,7 +10,7 @@
 ## Trial pack for operators (task-based trial, D8b)
 
 **Prerequisites (coordinator provisions, or operator brings):**
-- Open-WebUI **v0.11.0** — the only version live-tested (see `docs/supported-versions.md`; 0.10.2 not yet verified).
+- Open-WebUI **v0.11.0** — the only version live-tested (see `docs/supported-versions.md`; 0.10.2 chat CRUD is CI-verified, completions unverified).
 - The operator's **own server + account**. An admin must enable API keys (`ENABLE_API_KEYS`), and the operator uses a **dedicated non-admin API key** — never an admin key (see `docs/api-setup.md`).
 - Built binary: `go build -o owui-term ./cmd/owui-term` (Go ≥ 1.23) or `go install ./cmd/owui-term`.
 - `OWUI_URL` = the server's browser origin (e.g. `http://localhost:3000`); `OWUI_TOKEN` = the operator's own API key from that same account.
