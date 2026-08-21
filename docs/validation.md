@@ -17,7 +17,7 @@
 - Not yet started (needs ~5 Open-WebUI operators).
 
 ### Public traction
-- Not yet started.
+- **Published 2026-08-21:** `v0.1.0` tagged on [MerverliPy/owui-term](https://github.com/MerverliPy/owui-term) — repo is currently **PRIVATE**, so the D8c 30-day traction window opens only after the owner makes it public; signal recorded back here ~30 days later.
 
 ## Interim verdict
 
