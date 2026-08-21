@@ -2,7 +2,7 @@
 
 Terminal client for [Open-WebUI](https://openwebui.com) — chat with your self-hosted models from the terminal. **Server state is the source of truth**: chats you start or resume here persist on the server, exactly like the web UI.
 
-> 🚧 Early prototype — status: Phase 1 (reconnaissance) in progress. See [`PHASES.md`](PHASES.md) for the plan and `.brainstorm/DECISION-MEMO.md` for the design rationale.
+> 🚧 Early prototype — status: Phase 1 (reconnaissance) complete, Phase 2 (scaffold) in progress. See [`PHASES.md`](PHASES.md) for the plan; design rationale lives in the (private) council memo.
 
 ## Install (not yet available)
 
