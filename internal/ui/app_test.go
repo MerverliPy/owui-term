@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -171,6 +172,28 @@ func drainStream(t *testing.T, m Model) Model {
 		}
 	}
 	return m
+}
+
+func TestPersistAckReportsSaveResult(t *testing.T) {
+	m := testModel(&mockClient{})
+	m.chat = &openwebui.Chat{ID: "c1"}
+	m.screen = screenChat
+
+	m = step(t, m, persistDoneMsg{err: nil})
+	if !strings.Contains(m.saveMsg, "saved") {
+		t.Errorf("saveMsg = %q, want success indicator", m.saveMsg)
+	}
+	if !strings.Contains(m.View(), "saved to Open-WebUI") {
+		t.Errorf("chat view missing save confirmation")
+	}
+
+	m = step(t, m, persistDoneMsg{err: errors.New("boom")})
+	if !strings.Contains(m.saveMsg, "not saved") {
+		t.Errorf("saveMsg = %q, want failure indicator", m.saveMsg)
+	}
+	if !strings.Contains(m.View(), "boom") {
+		t.Errorf("chat view missing save error detail")
+	}
 }
 
 func TestQuitKey(t *testing.T) {

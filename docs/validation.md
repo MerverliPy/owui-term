@@ -21,10 +21,12 @@
 
 ## Interim verdict
 
-**Verdict: NOT STICKY (awaiting demand proof) — phase-gated work is paused after v1 M1 scope until operator + public validation is collected.**
+**Verdict: PENDING — no demand evidence yet (day 1).**
 
-This preserves the prototype and avoids over-expanding before proving demand:
-- continue dogfood + small maintenance of the implemented path,
-- collect 1–2 week owner usage,
-- run the 5-operator task trial,
-- then re-run validation and update this verdict.
+D8's go/no-go is evidence-based: (a) 1–2 weeks of owner dogfooding, (b) the ~5-operator task trial, (c) ~30 days of public traction. None of that evidence exists yet, so the gate is undetermined:
+
+- **No v1 work begins while PENDING — v1 M1 included** (D8 gates all v1 expansion).
+- Owner dogfooding runs 1–2 weeks (log: `docs/dogfood.md`); the D8 collapse trigger — owner create/reload not sticky in their own workflow — is evaluated at the end of that window (~2026-09-04).
+- If the collapse trigger fires, record **NOT STICKY** and collapse to a thin completions client or stop.
+- Otherwise, evaluate the full gate after the operator trial and 30 days of public traction, then record **STICKY** (proceed to v1 M1) or **NOT STICKY** (collapse or stop).
+- This page is re-run and updated when evidence lands.

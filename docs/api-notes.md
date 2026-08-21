@@ -8,11 +8,11 @@ Server: `http://localhost:3000` — **v0.11.0**, verified 2026-08-21 via `GET /a
 |---|---|
 | `POST /api/v1/auths/signin` | Email+password → `{token}` (JWT, Bearer) — **verified** |
 | `POST /api/v1/auths/signup` | **Disabled on this instance** (403, `ENABLE_SIGNUP=false`) |
-| `GET/POST/DELETE /api/v1/auths/api_key` | Per-user API key — **disabled** (403 "not allowed in the environment", `ENABLE_API_KEYS=false` env var) |
+| `GET/POST/DELETE /api/v1/auths/api_key` | Per-user API key — initially **disabled** (403, `ENABLE_API_KEYS=false`); **enabled 2026-08-21** via the admin config API, no restart (`docs/api-setup.md`) |
 | `POST /api/v1/auths/add` | Admin-only user creation — **verified** (created `owui-term-test`) |
 | `GET /api/v1/auths/admin/config` | Admin auth config — **verified** (`ENABLE_API_KEYS`, `ENABLE_SIGNUP`, endpoint restrictions) |
 
-All requests: `Authorization: Bearer <token-or-key>`. JWT works for everything; API keys are unavailable until the admin flips `ENABLE_API_KEYS` and restarts.
+All requests: `Authorization: Bearer <token-or-key>`. JWT works for everything. API keys were enabled 2026-08-21 **without a restart** via `POST /api/v1/auths/admin/config` — see `docs/api-setup.md`; key auth verified (HTTP 200, chat CRUD).
 
 ## Chat completions (OpenAI-compatible, SSE) — **verified live**
 

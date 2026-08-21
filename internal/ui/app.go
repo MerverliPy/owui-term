@@ -63,6 +63,7 @@ type Model struct {
 	history   []openwebui.Message
 	streamBuf string
 	streaming bool
+	saveMsg   string
 	streamCh  chan streamEventMsg
 
 	width, height int
@@ -128,10 +129,11 @@ type streamEventMsg struct {
 	done  bool
 }
 
-// persistDoneMsg is a best-effort ack that the conversation was written back;
-// it is intentionally a no-op in Update (persistence failure must not disrupt
-// the already-rendered chat).
-type persistDoneMsg struct{}
+// persistDoneMsg reports the write-back result so the TUI can confirm the
+// exchange was saved to the server (visible in the web UI). A persistence
+// failure must not disrupt the already-rendered chat — it is surfaced as a
+// status line instead.
+type persistDoneMsg struct{ err error }
 
 // ---------- commands ----------
 
@@ -184,8 +186,8 @@ func (m Model) persistChatCmd() tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		meta := openwebui.ChatMeta{Title: m.chatTitle(), Models: []string{modelID}, Messages: history}
-		m.client.UpdateChat(ctx, id, meta) // best-effort: errors leave the display intact
-		return persistDoneMsg{}
+		_, err := m.client.UpdateChat(ctx, id, meta) // best-effort: errors leave the display intact
+		return persistDoneMsg{err: err}
 	}
 }
 
@@ -234,6 +236,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.chat = msg.chat
 		m.history = nil
 		m.streamBuf = ""
+		m.saveMsg = ""
 		m.input.SetValue("")
 		m.input.Focus()
 		m.screen = screenChat
@@ -245,6 +248,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.chat = msg.chat
 		m.history = parseHistory(msg.chat)
 		m.streamBuf = ""
+		m.saveMsg = ""
 		m.input.SetValue("")
 		m.input.Focus()
 		m.screen = screenChat
@@ -276,6 +280,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.streamBuf += c.Delta.Content
 		}
 		return m, waitStreamMsg(m.streamCh)
+	case persistDoneMsg:
+		if msg.err != nil {
+			m.saveMsg = errorStyle.Render("⚠ not saved to server: " + msg.err.Error())
+		} else {
+			m.saveMsg = successStyle.Render("✓ saved to Open-WebUI")
+		}
+		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -398,10 +409,11 @@ func waitStreamMsg(ch chan streamEventMsg) tea.Cmd {
 // ---------- views ----------
 
 var (
-	titleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
-	mutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	errorStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196"))
-	cursorSel  = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
+	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+	mutedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	errorStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196"))
+	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	cursorSel    = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
 )
 
 // View renders the current screen.
@@ -493,6 +505,9 @@ func (m Model) chatView() string {
 	}
 	if m.streaming {
 		lines = append(lines, cursorSel.Render("ai")+": "+m.streamBuf+fmt.Sprintf(" %s", m.spinner.View()))
+	}
+	if m.saveMsg != "" {
+		lines = append(lines, m.saveMsg)
 	}
 	lines = append(lines, "", m.input.View(), mutedStyle.Render("Enter to send, Ctrl+C to quit."))
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)

@@ -2,7 +2,7 @@
 
 <!-- META
 created: 2026-08-21
-repository: MerverliPy/dotfiles (current scratch worktree; target repo to be created as <owner>/owui-term)
+repository: MerverliPy/owui-term (standalone repo, remote set at Phase 4; earlier scratch-worktree history lived in MerverliPy/dotfiles)
 branch: main
 generated_from:
   - .brainstorm/DECISION-MEMO.md
@@ -68,13 +68,13 @@ next_action: D8 demand validation running — 1–2 wk owner dogfood, ~5-operato
 > - `internal/openwebui`: typed documented endpoints only (D5) — `GET /api/models`, `POST /api/v1/chats/new`, `GET /api/v1/chats/list`, `GET /api/v1/chats/{id}`, streamed `POST /api/chat/completions`.
 > - Client is httptest-tested; `HTTPError` carries status/path so Phase 4 can branch; `ChatUnavailable()` is the D5 degradation signal.
 > - `internal/openwebui/sse`: one event per `data:` line (the framing verified on live 0.11.0), tolerant of fragmented reads, never dispatches an incomplete line. Captured fixture + fragmented/malformed/error/`[DONE]`/comment tests. *(The blank-line-separator model was corrected against the real fixture, which uses newline-delimited `data:` lines.)*
-> - Graceful degradation: typed `HTTPError` + `ChatUnavailable` helper ready; TUI wiring lands in Phase 4.
+> - Graceful degradation: typed `HTTPError` + `ChatUnavailable` helper ready; the TUI notice is deferred to v1 M1 (degradation is currently silent — corrected after adversarial review).
 
 - [x] `internal/openwebui` client: base URL, `Authorization: Bearer`, timeouts, JSON helpers — documented endpoints only (D5).
 - [x] Typed endpoints matching `docs/api-notes.md`: `GET /api/models`, `POST /api/v1/chats/new`, `GET /api/v1/chats/list`, `GET /api/v1/chats/{id}`, streamed `POST /api/chat/completions`.
 - [x] Defensive SSE parser in `internal/openwebui/sse`: line-buffered, tolerant of fragmented chunks, handles `data:` JSON events incl. `[DONE]`, usage, error events, tool deltas (ignore-unknown), never blocks on incomplete lines.
 - [x] Fixture-driven parser tests: complete lines, fragmented lines, usage chunks, malformed events, error events, `[DONE]` — table tests against captured fixtures in `internal/openwebui/testdata/`.
-- [x] Graceful degradation: if chats endpoints fail, fall back to completions-only mode (models + stream, no session sync) with a clear user notice (D5). *(Signal ready via `ChatUnavailable`; TUI notice wired in Phase 4.)*
+- [x] Graceful degradation: if chats endpoints fail, fall back to completions-only mode (models + stream, no session sync) with a clear user notice (D5). *(Signal ready via `ChatUnavailable`; the current TUI degrades silently to models-only — the user notice is not yet wired, deferred to v1 M1. Corrected after adversarial review.)*
 
 *Done = `go test ./internal/openwebui/...` green (incl. SSE fixtures); `go vet` clean.*
 
@@ -97,7 +97,7 @@ next_action: D8 demand validation running — 1–2 wk owner dogfood, ~5-operato
 ## Phase 5: Validation & demand gate <!-- COMPLETE --> <!-- PHASE_TIME: ~600s -->
 *Goal: quality bar + kick off D8 validation; record the go/no-go verdict that gates all v1 work.*
 
-> **Phase 5 outcome (2026-08-21):** complete — quality bar verified green this session: `go test ./...`, `go vet ./...`, `gofmt -l .` clean; `make test` / `make lint` / `make build` all exit 0. Repo hygiene done (README quickstart, MIT LICENSE, final `.gitignore`). D8 validation started: `docs/dogfood.md` (owner log + ~5-operator trial pack with go/no-go threshold) and interim verdict recorded in `docs/validation.md` (**NOT STICKY — awaiting demand proof**; re-run after the 1–2 wk window per D8). v1 M1 remains gated. Optional public step deferred: standalone repo `MerverliPy/owui-term` exists on GitHub (main @ Phase 4) — tagging `v0.1.0` + push is an owner publish decision; the 30-day traction window is time-gated. Handoff: `records/phase-5-handoff.md`.
+> **Phase 5 outcome (2026-08-21):** complete — quality bar verified green this session: `go test ./...`, `go vet ./...`, `gofmt -l .` clean; `make test` / `make lint` / `make build` all exit 0. Repo hygiene done (README quickstart, MIT LICENSE, final `.gitignore`). D8 validation started: `docs/dogfood.md` (owner log + ~5-operator trial pack with go/no-go threshold) and interim verdict recorded in `docs/validation.md` (**PENDING — no demand evidence yet**; re-run after the 1–2 wk window per D8). v1 M1 remains gated. Optional public step deferred: standalone repo `MerverliPy/owui-term` exists on GitHub (main @ Phase 4) — tagging `v0.1.0` + push is an owner publish decision; the 30-day traction window is time-gated. Handoff: `records/phase-5-handoff.md`.
 
 - [x] Full checks: `go test ./...`, `go vet ./...`, `gofmt -l .` clean; add `make test` / `make lint` / `make build` targets.
 - [x] Repo hygiene: complete README (quickstart via `go install`), LICENSE (MIT), final `.gitignore`.

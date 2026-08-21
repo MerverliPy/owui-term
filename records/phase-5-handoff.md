@@ -40,7 +40,7 @@ No CI workflows exist (`.github/workflows/` absent) — nothing to trigger. `UNR
 ## UNRESOLVED GATES
 
 - **Task 4 (optional public step) — DEFERRED `[-]`:** standalone repo `MerverliPy/owui-term` already exists on GitHub (`main` @ `a80d8c0` = Phase 4). Remaining: tag `v0.1.0` (recommended on the Phase 5 commit), push, and watch the ~30-day traction window (D8c). Tag+push is an owner publish decision; record signal in `docs/validation.md`.
-- **D8 demand proof pending:** interim verdict `NOT STICKY (awaiting demand proof)` in `docs/validation.md`. No demand evidence can exist on day 1; re-run verdict after the 1–2 week dogfood window and the 5-operator trial.
+- **D8 demand proof pending:** verdict is `PENDING` in `docs/validation.md` (day 1 — no evidence yet; `NOT STICKY` is reserved for a failed gate). Re-run after the 1–2 week dogfood window and the 5-operator trial.
 - **Not committed/pushed:** `docs/session-optimization.md` (owner's personal session-optimization plan, not a product deliverable) left untracked on purpose. Phase 5 commit is local — push pending owner.
 
 ## EXACT NEXT ACTION
@@ -54,3 +54,9 @@ D8 validation loop (no scheduled phase):
 ## MILESTONE ACCEPTANCE CLAIMED: YES
 
 Weekend prototype milestone (create + reload one server-persisted chat) delivered: D4 acceptance passed in Phase 4 (`docs/acceptance-test.md`), quality bar green, D8 validation started. Caveat: v1 M1+ roadmap work remains gated on the D8 verdict — this claim covers the weekend slice only, per D7/D8 cutlines (META `milestone_state: ACCEPTED`, `next_action` updated accordingly).
+
+---
+
+## Amendment (2026-08-21 — adversarial review follow-up)
+
+A 3-reviewer adversarial pass (claims-vs-reality, plan/constraint integrity, demand-gate operability) found no blockers; applied: verdict reworded to **PENDING** in `docs/validation.md` (was `NOT STICKY` — not the D8 binary), trial pack hardened (prerequisites, save-wait step, measurable 3/5 + 2/5 threshold, expanded logs), stale claims corrected (`/api/version` detection unwired, 0.10.2 unverified, API-key state), META `repository` fixed, `docs/session-optimization.md` gitignored. TUI now surfaces the write-back result (✓ saved / ⚠ not saved). Phase status unchanged (COMPLETE; milestone ACCEPTED).
