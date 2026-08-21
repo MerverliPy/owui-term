@@ -32,3 +32,5 @@ coverage.html
 
 # Personal session/agent-infra notes (not product docs)
 docs/session-optimization.md
+docs/orchestrator-plan.md
+records/orchestrator-ledger.md
