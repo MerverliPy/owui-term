@@ -182,7 +182,7 @@ parent-local ctx_* → scout → specialist skill (via delegate) → role agent 
 | **P0 (now)** | inventory + routing table (§3) + `ctx_stats` baseline + ledger schema (§2) | baseline recorded; inventory accurate |
 | **P1** | ledger wiring + per-unit measurement over ≥10 tasks | **measure-first gate:** ≥20% net `E_unit` reduction vs raw-session baseline *after* subtracting orchestrator meta-cost, AND zero edit-breaking incidents in advisory window, AND no verified-completion drop |
 | **P2** | enforcement, gated on P1 data: `read`>2KB hard-block (*fails open* for small/edit-bound reads), budgets on read-only children only, spawn caps | P1 gate met + no misfires |
-| **P3** | bounded autonomy for reversible low-risk work: `mission goal:true` with `budget.tokens`, watchdog on | explicit per-item owner grant |
+| **P3** | bounded autonomy for reversible low-risk work: `mission goal:true` with `budget.tokens`, watchdog on — **GRANTED 2026-08-21** (owner decision #2 resolved; watchdog on, envelope per §7) | explicit per-item owner grant — done; expansion requires P1 gate |
 | **P4** | failure injection: budget exhaust, dirty worktree, non-resumable advisor, lock-verify fail | all injected failures land in owner decisions, not silent recovery |
 
 **Build order:** routing table → ledger → clarify gate **last** (highest per-invocation meta-cost; defer until
@@ -193,7 +193,15 @@ routing+ledger delta is proven).
 ## 7. Owner decisions (open — not settled by evidence)
 
 1. Budget values: per-mission/per-unit token & cost ceilings; `usageBudget` hard-stop default-on?
-2. Autonomy envelope: approve the reversible low-risk class? Ever enable `mission goal` continuation and scheduled runs?
+2. **Autonomy envelope — RESOLVED 2026-08-21 (owner grant).** Enacted per P3:
+   - **In envelope (bounded autonomy):** the reversible low-risk class only — the 5-condition DEFAULT rule (§4) is
+     the boundary; `mission goal:true` with `budget.tokens` for idle continuation; **watchdog ON**
+     (`openai-codex/gpt-5.5:high`, user-scope settings, auto-follow for blockers).
+   - **Stays gated (not granted):** P2 enforcement (read-guard, budgets) until the 10-unit measurement gate;
+     scheduled runs (never enabled); unbounded loops; merge/release/credentials/irreversible actions;
+     content-lock changes.
+   - Note: grant was made with P1 measurement at 1/10 units — autonomy is owner-authorized but data-unproven;
+     revert is one settings write away (`subagents.watchdog.enabled: false`).
 3. `read`>2KB hard-block: experiment-for-N-weeks vs mandate (ties to `docs/session-optimization.md` P3)?
 4. Session policy: new-session-per-phase vs `ctx_purge`-on-threshold.
 5. Model tiers per route class + model-scope allowlist.
