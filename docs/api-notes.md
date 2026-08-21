@@ -2,6 +2,10 @@
 
 Server: `http://localhost:3000` — **v0.11.0**, verified 2026-08-21 via `GET /api/version` and the served `/openapi.json` (242 API paths of 476 total).
 
+## Version
+
+- `GET /api/version` — **verified live 2026-08-21** (HTTP 200, unauthenticated on the pinned instance): `{"version":"0.11.0","deployment_id":""}`. The client decodes this tolerantly (JSON envelope, or plain-string fallback) and uses it for the D5 supported-version notice (`internal/openwebui/versions.go`).
+
 ## Auth
 
 | Endpoint | Notes |

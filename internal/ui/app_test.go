@@ -14,17 +14,28 @@ import (
 
 // mockClient is a scriptable chatClient for tests.
 type mockClient struct {
-	models []openwebui.Model
-	chats  []openwebui.Chat
-	chat   *openwebui.Chat
-	sse    string
-	err    error
+	models   []openwebui.Model
+	chats    []openwebui.Chat
+	chat     *openwebui.Chat
+	sse      string
+	err      error
+	chatsErr error // fails ListChats only (D5 degradation path)
+	version  string
 }
 
+func (m *mockClient) Version(ctx context.Context) (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
+	return m.version, nil
+}
 func (m *mockClient) Models(ctx context.Context) ([]openwebui.Model, error) {
 	return m.models, m.err
 }
 func (m *mockClient) ListChats(ctx context.Context) ([]openwebui.Chat, error) {
+	if m.chatsErr != nil {
+		return nil, m.chatsErr
+	}
 	return m.chats, m.err
 }
 func (m *mockClient) CreateChat(ctx context.Context, title string, modelIDs []string) (*openwebui.Chat, error) {
@@ -44,6 +55,9 @@ func (m *mockClient) UpdateChat(ctx context.Context, id string, meta openwebui.C
 		return nil, m.err
 	}
 	return &openwebui.Chat{ID: id, Title: meta.Title}, nil
+}
+func (m *mockClient) DeleteChat(ctx context.Context, id string) error {
+	return m.err
 }
 func (m *mockClient) StreamCompletions(ctx context.Context, req openwebui.CompletionsRequest) (*sse.Reader, error) {
 	if m.err != nil {
@@ -193,6 +207,76 @@ func TestPersistAckReportsSaveResult(t *testing.T) {
 	}
 	if !strings.Contains(m.View(), "boom") {
 		t.Errorf("chat view missing save error detail")
+	}
+}
+
+func TestLoadChatsFailDegradesToCompletionsOnly(t *testing.T) {
+	m := testModel(&mockClient{})
+	degradeErr := errors.New("chats down")
+	m = step(t, m, loadDoneMsg{models: []openwebui.Model{{ID: "m1"}}, chatsErr: degradeErr})
+
+	if m.screen != screenModelSelect {
+		t.Fatalf("screen = %v, want model select", m.screen)
+	}
+	if !strings.Contains(m.notice, "completions-only") {
+		t.Errorf("notice = %q, want completions-only", m.notice)
+	}
+	if !strings.Contains(m.View(), "chats unavailable") {
+		t.Errorf("model-select view missing degradation banner")
+	}
+
+	// Enter must skip the chat list and land directly in the chat screen
+	// with no server chat (D5 completions-only mode).
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.screen != screenChat {
+		t.Fatalf("screen = %v, want chat", m.screen)
+	}
+	if m.chat != nil {
+		t.Fatalf("chat = %+v, want nil in completions-only mode", m.chat)
+	}
+	if !strings.Contains(m.View(), "(none)") {
+		t.Errorf("chat view should show chat id (none):\n%s", m.View())
+	}
+	if !strings.Contains(m.View(), "completions-only") {
+		t.Errorf("chat view missing notice banner")
+	}
+
+	// Submitting a prompt must not panic with a nil chat.
+	m.input.SetValue("hi")
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	if len(m.history) != 1 || m.history[0].Role != "user" || m.history[0].Content != "hi" {
+		t.Errorf("history = %+v, want the submitted user prompt", m.history)
+	}
+	if m.streaming != true {
+		t.Errorf("streaming = %v, want true after submit", m.streaming)
+	}
+}
+
+func TestUnsupportedVersionShowsNoticeAndSkipsChatList(t *testing.T) {
+	m := testModel(&mockClient{})
+	m = step(t, m, loadDoneMsg{models: []openwebui.Model{{ID: "m1"}}, chats: []openwebui.Chat{}, version: "0.12.0"})
+
+	if !strings.Contains(m.notice, "unsupported Open-WebUI version 0.12.0") {
+		t.Errorf("notice = %q, want unsupported-version text", m.notice)
+	}
+	if !strings.Contains(m.View(), "supported: 0.10–0.11") {
+		t.Errorf("view missing supported-window hint")
+	}
+
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+	if m.screen != screenChat {
+		t.Fatalf("screen = %v, want chat (unsupported version -> completions-only)", m.screen)
+	}
+
+	// A supported version must NOT degrade.
+	m2 := testModel(&mockClient{})
+	m2 = step(t, m2, loadDoneMsg{models: []openwebui.Model{{ID: "m1"}}, chats: []openwebui.Chat{}, version: "0.11.0"})
+	if m2.notice != "" {
+		t.Errorf("notice = %q, want empty for supported version", m2.notice)
+	}
+	m2 = step(t, m2, tea.KeyMsg{Type: tea.KeyEnter})
+	if m2.screen != screenChatList {
+		t.Fatalf("screen = %v, want chat list for supported version", m2.screen)
 	}
 }
 

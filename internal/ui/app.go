@@ -34,11 +34,13 @@ const (
 // chatClient is the subset of the Open-WebUI client the UI needs. It is an
 // interface so tests can inject a mock (real impl: *openwebui.Client).
 type chatClient interface {
+	Version(ctx context.Context) (string, error)
 	Models(ctx context.Context) ([]openwebui.Model, error)
 	ListChats(ctx context.Context) ([]openwebui.Chat, error)
 	CreateChat(ctx context.Context, title string, modelIDs []string) (*openwebui.Chat, error)
 	GetChat(ctx context.Context, id string) (*openwebui.Chat, error)
 	UpdateChat(ctx context.Context, id string, meta openwebui.ChatMeta) (*openwebui.Chat, error)
+	DeleteChat(ctx context.Context, id string) error
 	StreamCompletions(ctx context.Context, req openwebui.CompletionsRequest) (*sse.Reader, error)
 }
 
@@ -65,6 +67,10 @@ type Model struct {
 	streaming bool
 	saveMsg   string
 	streamCh  chan streamEventMsg
+
+	// notice is a D5 degradation/unsupported-version banner rendered on every
+	// screen (never silent failure). Empty means fully functional mode.
+	notice string
 
 	width, height int
 }
@@ -106,7 +112,13 @@ func (m Model) Init() tea.Cmd {
 type loadDoneMsg struct {
 	models []openwebui.Model
 	chats  []openwebui.Chat
-	err    error
+	// version is the server-reported Open-WebUI version ("" when the probe
+	// failed — a failed probe is not evidence of an unsupported version, so
+	// the app proceeds normally in that case).
+	version string
+	// chatsErr non-nil means the chats API failed: D5 completions-only mode.
+	chatsErr error
+	err      error
 }
 
 type chatDoneMsg struct {
@@ -141,16 +153,15 @@ func (m Model) loadCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		// Version probe first; a probe failure is non-fatal (the server may be
+		// admin-gated), so it is not a degradation signal on its own.
+		version, _ := m.client.Version(ctx)
 		models, merr := m.client.Models(ctx)
 		if merr != nil {
 			return loadDoneMsg{err: merr}
 		}
 		chats, cerr := m.client.ListChats(ctx)
-		if cerr != nil {
-			// D5: chats unavailable -> degrade; keep going with models only.
-			return loadDoneMsg{models: models, err: nil, chats: nil}
-		}
-		return loadDoneMsg{models: models, chats: chats}
+		return loadDoneMsg{models: models, chats: chats, version: version, chatsErr: cerr}
 	}
 }
 
@@ -203,7 +214,11 @@ func (m Model) chatTitle() string {
 }
 
 func (m Model) submitPrompt(prompt string) tea.Cmd {
-	modelID, chatID, history := m.modelID, m.chat.ID, m.history
+	modelID, history := m.modelID, m.history
+	chatID := ""
+	if m.chat != nil {
+		chatID = m.chat.ID
+	}
 	return func() tea.Msg {
 		req := openwebui.CompletionsRequest{Model: modelID, Messages: history, ChatID: chatID}
 		r, err := m.client.StreamCompletions(context.Background(), req)
@@ -227,6 +242,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.models, m.chats = msg.models, msg.chats
+		m.notice = ""
+		switch {
+		case msg.chatsErr != nil:
+			// D5: chats unavailable -> completions-only mode, never silent.
+			m.notice = fmt.Sprintf("chats unavailable (%v) — completions-only mode; this conversation will not be saved", msg.chatsErr)
+		case msg.version != "":
+			if ok, n := openwebui.Supported(msg.version); !ok {
+				m.notice = n + " — continuing in completions-only mode"
+			}
+		}
 		m.screen = screenModelSelect
 		return m, nil
 	case chatDoneMsg:
@@ -321,7 +346,12 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.modelID = m.models[m.cursor].ID
 			m.cursor = 0
-			m.screen = screenChatList
+			if m.notice != "" {
+				// Degraded/unsupported: skip the chat list (D5 completions-only).
+				m.screen = screenChat
+			} else {
+				m.screen = screenChatList
+			}
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		}
@@ -356,8 +386,8 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			prompt := strings.TrimSpace(m.input.Value())
-			if prompt == "" || m.chat == nil {
-				return m, nil
+			if prompt == "" {
+				return m, nil // m.chat may be nil in completions-only mode (D5)
 			}
 			// Mutate the real model here (the command closure only reads state).
 			m.input.SetValue("")
@@ -439,8 +469,19 @@ func (m Model) loadingView() string {
 	)
 }
 
+func (m Model) noticeView() string {
+	if m.notice == "" {
+		return ""
+	}
+	return errorStyle.Render("⚠ " + m.notice)
+}
+
 func (m Model) modelSelectView() string {
-	lines := []string{titleStyle.Render("owui-term " + m.version), "", mutedStyle.Render("Select a model:"), ""}
+	lines := []string{titleStyle.Render("owui-term " + m.version)}
+	if n := m.noticeView(); n != "" {
+		lines = append(lines, "", n)
+	}
+	lines = append(lines, "", mutedStyle.Render("Select a model:"), "")
 	for i, mod := range m.models {
 		name := mod.Name
 		if name == "" {
@@ -459,10 +500,11 @@ func (m Model) modelSelectView() string {
 func (m Model) chatListView() string {
 	lines := []string{
 		titleStyle.Render("owui-term " + m.version),
-		"",
-		mutedStyle.Render("Chats (model: " + m.modelID + "):"),
-		"",
 	}
+	if n := m.noticeView(); n != "" {
+		lines = append(lines, "", n)
+	}
+	lines = append(lines, "", mutedStyle.Render("Chats (model: "+m.modelID+"):"), "")
 	for i := -1; i < len(m.chats); i++ {
 		marker := "  "
 		label := mutedStyle.Render("+ New chat")
@@ -495,7 +537,11 @@ func (m Model) chatListView() string {
 func (m Model) chatView() string {
 	header := fmt.Sprintf("%s  model: %s  chat: %s",
 		titleStyle.Render("owui-term "+m.version), mutedStyle.Render(m.modelID), mutedStyle.Render(chatShortID(m.chat)))
-	lines := []string{header, ""}
+	lines := []string{header}
+	if n := m.noticeView(); n != "" {
+		lines = append(lines, "", n)
+	}
+	lines = append(lines, "")
 	for _, msg := range m.history {
 		role := cursorSel.Render("you")
 		if msg.Role == "assistant" {

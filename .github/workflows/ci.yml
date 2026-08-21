@@ -1,0 +1,79 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+      - name: Test
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Gofmt
+        run: test -z "$(gofmt -l .)"
+      - name: Build
+        run: go build ./...
+
+  # D5 compatibility matrix: smoke the documented API surface against the
+  # pinned current minor (0.11.0) and the prior minor (0.10.2). No inference
+  # backend is needed for the chat CRUD + write-back round-trip (cmd/smoke);
+  # the SSE parser is covered by fixture tests locally.
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        owui: ["0.11.0", "0.10.2"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+      - name: Start pinned Open-WebUI ${{ matrix.owui }}
+        run: |
+          docker run -d --name owui -p 3000:3000 \
+            -e ENABLE_SIGNUP=true \
+            -e WEBUI_SECRET_KEY=owui-term-ci-secret \
+            ghcr.io/open-webui/open-webui:${{ matrix.owui }}
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/version >/dev/null 2>&1; then
+              echo "Open-WebUI ${{ matrix.owui }} up after ${i}0s"
+              break
+            fi
+            sleep 10
+          done
+          curl -sf http://localhost:3000/api/version || { docker logs owui | tail -40; exit 1; }
+      - name: Provision a user (first signup = admin; JWT covers the documented surface)
+        run: |
+          for i in $(seq 1 12); do
+            BODY=$(curl -s -X POST http://localhost:3000/api/v1/auths/signup \
+              -H 'Content-Type: application/json' \
+              -d '{"name":"ci","email":"ci@example.com","password":"ci-password-123"}')
+            TOKEN=$(printf '%s' "$BODY" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("token",""))' 2>/dev/null || true)
+            if [ -n "$TOKEN" ]; then
+              echo "OWUI_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+              echo "OWUI_URL=http://localhost:3000" >> "$GITHUB_ENV"
+              echo "provisioned"
+              break
+            fi
+            sleep 5
+          done
+          if [ -z "${TOKEN:-}" ]; then
+            echo "signup failed; last body: $BODY"
+            docker logs owui | tail -40
+            exit 1
+          fi
+      - name: Smoke the documented surface
+        run: go run ./cmd/smoke
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f owui || true

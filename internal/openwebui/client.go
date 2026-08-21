@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -44,6 +45,65 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	return req, nil
+}
+
+// Version returns the server's Open-WebUI version (GET /api/version). The
+// endpoint is unauthenticated on the pinned instance; the bearer header is
+// still sent for self-hosted setups that restrict it. Decoding is tolerant:
+// JSON envelope on pinned versions, plain string on some prior minors.
+// (Captured 0.11.0 shape: {"version":"0.11.0","deployment_id":""}.)
+func (c *Client) Version(ctx context.Context) (string, error) {
+	req, err := c.newRequest(ctx, http.MethodGet, "/api/version", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if !isSuccess(resp.StatusCode) {
+		return "", statusError(http.MethodGet, "/api/version", resp)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if err != nil {
+		return "", err
+	}
+	var env struct {
+		Version string `json:"version"`
+	}
+	if json.Unmarshal(body, &env) == nil && env.Version != "" {
+		return env.Version, nil
+	}
+	if v := strings.TrimSpace(string(body)); v != "" && !strings.HasPrefix(v, "{") {
+		return v, nil
+	}
+	return "", fmt.Errorf("GET /api/version: unrecognized response %q", truncate(string(body), 120))
+}
+
+// DeleteChat deletes a chat (DELETE /api/v1/chats/{id}).
+func (c *Client) DeleteChat(ctx context.Context, id string) error {
+	req, err := c.newRequest(ctx, http.MethodDelete, "/api/v1/chats/"+url.PathEscape(id), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if !isSuccess(resp.StatusCode) {
+		return statusError(http.MethodDelete, "/api/v1/chats/"+url.PathEscape(id), resp)
+	}
+	return nil
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }
 
 // Models lists available models (GET /api/models).

@@ -215,6 +215,75 @@ func TestHTTPErrorOnBadStatus(t *testing.T) {
 	}
 }
 
+func TestVersionJSONEnvelope(t *testing.T) {
+	// Shape captured from live 0.11.0.
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/version" {
+			t.Errorf("path = %q, want /api/version", r.URL.Path)
+		}
+		io.WriteString(w, `{"version":"0.11.0","deployment_id":""}`)
+	})
+	v, err := c.Version(context.Background())
+	if err != nil {
+		t.Fatalf("Version: %v", err)
+	}
+	if v != "0.11.0" {
+		t.Errorf("Version = %q, want 0.11.0", v)
+	}
+}
+
+func TestVersionPlainStringFallback(t *testing.T) {
+	// Tolerant decoding: some prior minors return a bare string.
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `0.10.2`)
+	})
+	v, err := c.Version(context.Background())
+	if err != nil {
+		t.Fatalf("Version: %v", err)
+	}
+	if v != "0.10.2" {
+		t.Errorf("Version = %q, want 0.10.2", v)
+	}
+}
+
+func TestVersionUnrecognizedResponse(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{}`)
+	})
+	if _, err := c.Version(context.Background()); err == nil {
+		t.Error("Version on {} should fail (no version field)")
+	}
+}
+
+func TestVersionErrorStatus(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusForbidden)
+	})
+	_, err := c.Version(context.Background())
+	he, ok := err.(*HTTPError)
+	if !ok {
+		t.Fatalf("Version error = %T, want *HTTPError", err)
+	}
+	if he.Status != http.StatusForbidden || he.Path != "/api/version" {
+		t.Errorf("HTTPError = %+v", he)
+	}
+}
+
+func TestDeleteChat(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %s, want DELETE", r.Method)
+		}
+		if r.URL.Path != "/api/v1/chats/chat-1" {
+			t.Errorf("path = %q, want /api/v1/chats/chat-1", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	if err := c.DeleteChat(context.Background(), "chat-1"); err != nil {
+		t.Fatalf("DeleteChat: %v", err)
+	}
+}
+
 func TestChatUnavailable(t *testing.T) {
 	if !ChatUnavailable(&HTTPError{Method: "GET", Path: "/api/v1/chats/list", Status: 404}) {
 		t.Error("404 on /chats should be reported as chats unavailable")
