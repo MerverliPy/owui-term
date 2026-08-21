@@ -40,7 +40,7 @@ jobs:
       - name: Start pinned Open-WebUI ${{ matrix.owui }}
         run: |
           docker pull ghcr.io/open-webui/open-webui:${{ matrix.owui }}
-          docker run -d --name owui -p 3000:3000 \
+          docker run -d --name owui -p 3000:8080 \
             -e ENABLE_SIGNUP=true \
             -e WEBUI_SECRET_KEY=owui-term-ci-secret \
             ghcr.io/open-webui/open-webui:${{ matrix.owui }}
