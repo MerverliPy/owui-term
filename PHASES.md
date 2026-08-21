@@ -48,13 +48,13 @@ next_action: Phase 3 — API client layer + SSE parser
 ## Phase 2: Project scaffold (Go + bubbletea) <!-- COMPLETE -->
 *Goal: a compiling, configurable skeleton with the build hygiene the later phases rely on.*
 
-> **Phase 2 outcome (2026-08-21):** complete. `go build ./...`, `go vet ./...`, `gofmt -l` clean; 7 config unit tests green; `--version` and all config error paths verified on the built binary.
+> **Phase 2 outcome (2026-08-21):** complete. `go build ./...`, `go vet ./...`, `gofmt -l .` clean; 11 config unit tests green; `--version` and all config error paths verified on the built binary.
 > - Module `owui-term`; pinned Go ≥1.23 (charmbracelet `golang.org/x/*` transitives require it; 1.22.2 auto-downloads the 1.23 toolchain). Pinned deps: bubbletea v1.2.4, lipgloss v1.1.0, bubbles v0.20.0.
-> - **glamour deferred to Phase 4** — not imported yet (markdown polish is excluded from the weekend slice), so `go mod tidy` correctly drops it until then.
+> - **glamour deferred** (not to Phase 4) — not imported yet; markdown polish is excluded from the weekend slice (D4 accepts plain text), so it's added only when markdown rendering lands (v1 M2). `go mod tidy` correctly drops the unused dep.
 > - Structure: `cmd/owui-term/main.go` (entry + `--version`), `internal/config` (D6 env config + tests), `internal/ui` (Model/Update/View skeleton with loading/ready/error states, spinner). Token never rendered (D6).
 
 - [x] `go mod init` (module `owui-term`); create `cmd/owui-term/main.go`; `go build ./...` passes.
-- [x] Add bubbletea, lipgloss, bubbles, glamour (versions pinned in `go.mod`); a minimal Model/Update/View skeleton compiles and renders a placeholder screen. *(glamour added in Phase 4 — unused until markdown rendering)*
+- [x] Add bubbletea, lipgloss, bubbles, glamour (versions pinned in `go.mod`); a minimal Model/Update/View skeleton compiles and renders a placeholder screen. *(glamour added when markdown rendering lands, later than Phase 4)*
 - [x] Config layer per D6: read `OWUI_URL` / `OWUI_TOKEN` env vars in `internal/config`; unit tests for missing/invalid config produce clear, actionable errors.
 - [x] Basic loading/error UI states (D4 requires basic error states in the slice) and a `.gitignore` covering build artifacts and local secrets.
 - [x] `--version` flag and a supported-versions note wired into `docs/supported-versions.md` and README.
@@ -76,9 +76,9 @@ next_action: Phase 3 — API client layer + SSE parser
 *Goal: the exact acceptance test from D4 — prove the Open-WebUI-native thesis end-to-end.*
 
 - [ ] Model list/select view backed by `GET /api/models`, with loading/error states.
-- [ ] Create chat via `POST /api/chats/new`; retain the returned `chat_id` for the session.
+- [ ] Create chat via `POST /api/v1/chats/new`; retain the returned `chat_id` for the session.
 - [ ] Chat view: submit one prompt to streamed completions bound to that `chat_id`; render streamed text incrementally (plain text is acceptable this phase — markdown polish is excluded per D4).
-- [ ] Refresh list (`GET /api/chats`) and open/reload a chat (`GET /api/chats/{id}`) after a fresh process start.
+- [ ] Refresh list (`GET /api/v1/chats/list`) and open/reload a chat (`GET /api/v1/chats/{id}`) after a fresh process start.
 - [ ] Run the acceptance test end-to-end and record the result in `docs/acceptance-test.md`: env config → model select → create → stream → refresh → reload → verify user+assistant messages persist and are visible in the web UI.
 
 *Done = acceptance test passes against the pinned instance; result documented with captured evidence.*
@@ -86,7 +86,7 @@ next_action: Phase 3 — API client layer + SSE parser
 ## Phase 5: Validation & demand gate <!-- PENDING -->
 *Goal: quality bar + kick off D8 validation; record the go/no-go verdict that gates all v1 work.*
 
-- [ ] Full checks: `go test ./...`, `go vet ./...`, `gofmt -l` clean; add `make test` / `make lint` / `make build` targets.
+- [ ] Full checks: `go test ./...`, `go vet ./...`, `gofmt -l .` clean; add `make test` / `make lint` / `make build` targets.
 - [ ] Repo hygiene: complete README (quickstart via `go install`), LICENSE (MIT), final `.gitignore`.
 - [ ] Start the 1–2 week owner dogfooding log (`docs/dogfood.md`); prepare the task-based trial pack (~5 Open-WebUI operators: create in TUI → reload a browser chat → resume later) with the go/no-go threshold from D8.
 - [ ] Optional public step: rename repo to `owui-term`, tag `v0.1.0`, watch ~30-day traction; record signal in `docs/validation.md`.

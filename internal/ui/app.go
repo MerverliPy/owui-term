@@ -33,8 +33,6 @@ type Model struct {
 	err   error
 
 	spinner spinner.Model
-
-	width, height int
 }
 
 // New returns the initial model, in the loading state.
@@ -56,10 +54,6 @@ type readyMsg struct{}
 // Update dispatches messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		return m, nil
-
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -82,7 +76,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // SetError moves the model to the error state so the view can render guidance.
+// A nil error is ignored (the View would otherwise dereference m.err and panic).
 func (m Model) SetError(err error) Model {
+	if err == nil {
+		return m
+	}
 	m.state = stateError
 	m.err = err
 	return m

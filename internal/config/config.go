@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 )
 
 // Environment variables owui-term reads. OWUI_URL must be the base URL of the
@@ -47,11 +48,21 @@ func Load() (Config, error) {
 			"%s=%q must be an http:// or https:// URL (got scheme %q)",
 			EnvURL, cfg.URL, u.Scheme)
 	}
-	if u.Host == "" {
+	if u.Hostname() == "" {
 		return cfg, fmt.Errorf("%s=%q is missing a host, e.g. http://localhost:3000", EnvURL, cfg.URL)
 	}
+	if u.User != nil {
+		// D6 token safety: never accept credentials embedded in the URL; the
+		// bearer token belongs in OWUI_TOKEN only.
+		return cfg, fmt.Errorf(
+			"%s must not contain user credentials in the URL — set %s instead", EnvURL, EnvToken)
+	}
 
-	if cfg.Token == "" {
+	// Canonicalize (e.g. lowercase the scheme: HTTP:// -> http://) so later
+	// consumers see one stable base URL.
+	cfg.URL = u.String()
+
+	if strings.TrimSpace(cfg.Token) == "" {
 		return cfg, fmt.Errorf(
 			"%s is not set — use an Open-WebUI API key (sk-…) or a sign-in JWT, e.g. "+
 				`export %s=sk-…`, EnvToken, EnvToken)
