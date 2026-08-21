@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"owui-term/internal/config"
 	"owui-term/internal/openwebui"
 	"owui-term/internal/openwebui/sse"
 )
@@ -321,6 +322,220 @@ func TestOpenChatRendersHistory(t *testing.T) {
 	}
 	if !strings.Contains(m.View(), "first") || !strings.Contains(m.View(), "reply") {
 		t.Errorf("chat view should render reloaded messages:\n%s", m.View())
+	}
+}
+
+// runCmd executes a tea.Cmd (as the bubbletea loop would) and feeds its
+// resulting message back into Update — covers the async command closures that
+// step() alone leaves unexecuted.
+func runCmd(t *testing.T, m Model, cmd tea.Cmd) Model {
+	t.Helper()
+	if cmd == nil {
+		t.Fatal("runCmd: nil command")
+	}
+	return step(t, m, cmd())
+}
+
+func TestNewWiresClientAndVersion(t *testing.T) {
+	m := New(config.Config{URL: "http://x", Token: "sk-test"}, "v-test")
+	if m.screen != screenLoading {
+		t.Errorf("screen = %v, want screenLoading", m.screen)
+	}
+	if m.version != "v-test" {
+		t.Errorf("version = %q, want v-test", m.version)
+	}
+}
+
+func TestLoadingViewRenders(t *testing.T) {
+	m := testModel(&mockClient{})
+	if !strings.Contains(m.View(), "loading") {
+		t.Errorf("loading view should render a loading indicator")
+	}
+}
+
+func TestModelSelectNavigationBounds(t *testing.T) {
+	models := []openwebui.Model{{ID: "m1"}, {ID: "m2"}}
+	m := step(t, testModel(&mockClient{}), loadDoneMsg{models: models})
+
+	// Up at the top stays put.
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	if m.cursor != 0 {
+		t.Errorf("cursor = %d, want 0 after up at top", m.cursor)
+	}
+	// Down moves once, then stops at the last entry.
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	if m.cursor != 1 {
+		t.Errorf("cursor = %d, want 1 after down x2 on 2 models", m.cursor)
+	}
+	// Enter with an empty model list must not advance or panic.
+	m2 := step(t, testModel(&mockClient{}), loadDoneMsg{models: nil})
+	if _, cmd := m2.Update(tea.KeyMsg{Type: tea.KeyEnter}); cmd != nil {
+		t.Error("enter with no models should be a no-op")
+	}
+	if m2.screen != screenModelSelect {
+		t.Errorf("screen = %v, want model select", m2.screen)
+	}
+}
+
+func TestChatListEmptyAndNewChatEntry(t *testing.T) {
+	m := testModel(&mockClient{})
+	m.modelID = "m1"
+	m.screen = screenChatList
+
+	v := m.View()
+	if !strings.Contains(v, "+ New chat") || !strings.Contains(v, "(no existing chats)") {
+		t.Errorf("empty chat list should offer new chat entry:\n%s", v)
+	}
+	// Enter on the new-chat entry issues createChatCmd.
+	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter}); cmd == nil {
+		t.Error("enter on new-chat entry should return createChatCmd")
+	}
+	// Navigation bounds with no chats: cursor stays at 0.
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyDown})
+	m = step(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	if m.cursor != 0 {
+		t.Errorf("cursor = %d, want 0", m.cursor)
+	}
+}
+
+func TestChatListViewRendersTitles(t *testing.T) {
+	m := testModel(&mockClient{})
+	m.modelID = "m1"
+	m.screen = screenChatList
+	m.chats = []openwebui.Chat{{ID: "c1", Title: "Alpha"}, {ID: "c2", Title: "Beta"}}
+
+	v := m.View()
+	if !strings.Contains(v, "Alpha") || !strings.Contains(v, "Beta") || !strings.Contains(v, "+ New chat") {
+		t.Errorf("chat list should render titles + new-chat entry:\n%s", v)
+	}
+	// Enter on an existing chat row issues openChatCmd.
+	m.cursor = 1
+	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter}); cmd == nil {
+		t.Error("enter on an existing chat should return openChatCmd")
+	}
+}
+
+func TestCreateChatCmdError(t *testing.T) {
+	m := testModel(&mockClient{err: errTest("create boom")})
+	m.modelID = "m1"
+	m.screen = screenChatList
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // cursor 0 -> createChatCmd
+	m = runCmd(t, m, cmd)
+	if m.screen != screenError {
+		t.Fatalf("screen = %v, want screenError", m.screen)
+	}
+	if !strings.Contains(m.View(), "create boom") {
+		t.Errorf("error view should render the create failure")
+	}
+	// q quits from the error screen.
+	if _, qcmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}); qcmd == nil {
+		t.Error("q on error screen should quit")
+	}
+}
+
+func TestOpenChatCmdError(t *testing.T) {
+	m := testModel(&mockClient{err: errTest("open boom")})
+	m.modelID = "m1"
+	m.screen = screenChatList
+	m.chats = []openwebui.Chat{{ID: "c1"}}
+	m.cursor = 1
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // openChatCmd for c1
+	m = runCmd(t, m, cmd)
+	if m.screen != screenError {
+		t.Fatalf("screen = %v, want screenError", m.screen)
+	}
+	if !strings.Contains(m.View(), "open boom") {
+		t.Errorf("error view should render the open failure")
+	}
+}
+
+func TestStreamReadyError(t *testing.T) {
+	m := testModel(&mockClient{})
+	m.screen = screenChat
+	m.streaming = true
+	m = step(t, m, streamReadyMsg{err: errTest("stream boom")})
+	if m.streaming {
+		t.Error("streaming should stop on stream error")
+	}
+	if m.screen != screenError || !strings.Contains(m.View(), "stream boom") {
+		t.Errorf("screen = %v, want error view with message", m.screen)
+	}
+}
+
+func TestStreamToleratesMalformedChunk(t *testing.T) {
+	m := testModel(&mockClient{})
+	m.screen = screenChat
+	m.streaming = true
+	m.streamCh = make(chan streamEventMsg)
+	// Malformed JSON chunks must be skipped, not fatal (D5 tolerant).
+	m = step(t, m, streamEventMsg{event: sse.Event{Data: "{not json"}})
+	if !m.streaming {
+		t.Error("malformed chunk should not stop the stream")
+	}
+}
+
+func TestWindowSizeStored(t *testing.T) {
+	m := step(t, testModel(&mockClient{}), tea.WindowSizeMsg{Width: 101, Height: 37})
+	if m.width != 101 || m.height != 37 {
+		t.Errorf("size = %dx%d, want 101x37", m.width, m.height)
+	}
+}
+
+func TestPersistCmdRunsEndToEnd(t *testing.T) {
+	// Success path: the closure calls UpdateChat and the ack renders.
+	m := testModel(&mockClient{})
+	m.chat = &openwebui.Chat{ID: "c1", Title: "My chat"}
+	m.modelID = "m1"
+	m.history = []openwebui.Message{{Role: "user", Content: "hi"}}
+	m.screen = screenChat
+	m = runCmd(t, m, m.persistChatCmd())
+	if !strings.Contains(m.saveMsg, "saved to Open-WebUI") {
+		t.Errorf("saveMsg = %q, want saved confirmation", m.saveMsg)
+	}
+	if !strings.Contains(m.View(), "saved to Open-WebUI") {
+		t.Errorf("chat view missing save confirmation")
+	}
+
+	// Failure path: UpdateChat error is surfaced, not silent.
+	m2 := testModel(&mockClient{err: errTest("persist boom")})
+	m2.chat = &openwebui.Chat{ID: "c1", Title: "My chat"}
+	m2.modelID = "m1"
+	m2.screen = screenChat
+	m2 = runCmd(t, m2, m2.persistChatCmd())
+	if !strings.Contains(m2.saveMsg, "not saved") || !strings.Contains(m2.saveMsg, "persist boom") {
+		t.Errorf("saveMsg = %q, want failure indication", m2.saveMsg)
+	}
+}
+
+func TestWaitStreamMsg(t *testing.T) {
+	// A pending event is delivered.
+	ch := make(chan streamEventMsg, 1)
+	ch <- streamEventMsg{event: sse.Event{Data: "hello"}}
+	if msg := waitStreamMsg(ch)().(streamEventMsg); msg.event.Data != "hello" {
+		t.Errorf("msg = %+v, want the pending event", msg)
+	}
+	// A closed channel is reported as done.
+	close(ch)
+	if msg := waitStreamMsg(ch)().(streamEventMsg); !msg.done {
+		t.Errorf("msg = %+v, want done on closed channel", msg)
+	}
+}
+
+func TestChatSubmitGuards(t *testing.T) {
+	m := testModel(&mockClient{})
+	m.screen = screenChat
+	m.chat = &openwebui.Chat{ID: "c1"}
+
+	// Empty prompt: no command.
+	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter}); cmd != nil {
+		t.Error("empty prompt should not submit")
+	}
+	// Streaming in progress: no command.
+	m.streaming = true
+	m.input.SetValue("hi")
+	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter}); cmd != nil {
+		t.Error("enter while streaming should be ignored")
 	}
 }
 
