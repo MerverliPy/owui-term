@@ -3,6 +3,7 @@ package openwebui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -91,7 +92,7 @@ func TestGetChat(t *testing.T) {
 			t.Errorf("path = %q", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"id":"chat-42","title":"hi","created_at":"2026-08-21T00:00:00Z"}`)
+		io.WriteString(w, `{"id":"chat-42","title":"hi","created_at":1787328000}`)
 	})
 
 	chat, err := c.GetChat(context.Background(), "chat-42")
@@ -121,13 +122,16 @@ func TestUpdateChat(t *testing.T) {
 		io.WriteString(w, `{"id":"c1","title":"t"}`)
 	})
 
-	_, err := c.UpdateChat(context.Background(), "c1", ChatMeta{
+	chat, err := c.UpdateChat(context.Background(), "c1", ChatMeta{
 		Title:    "t",
 		Models:   []string{"m1"},
 		Messages: []Message{{Role: "user", Content: "hi"}, {Role: "assistant", Content: "ok"}},
 	})
 	if err != nil {
 		t.Fatalf("UpdateChat: %v", err)
+	}
+	if chat.ID != "c1" || chat.Title != "t" {
+		t.Errorf("updated chat = %+v", chat)
 	}
 }
 
@@ -162,12 +166,17 @@ func TestStreamCompletions(t *testing.T) {
 	}
 
 	var contents []string
+	doneSentinel := false
 	for {
 		ev, err := rd.Next()
-		if err != nil {
+		if errors.Is(err, io.EOF) {
 			break
 		}
+		if err != nil {
+			t.Fatalf("read stream: %v", err)
+		}
 		if ev.IsDone() {
+			doneSentinel = true
 			continue
 		}
 		var chunk sseCompletionChunk
@@ -180,6 +189,9 @@ func TestStreamCompletions(t *testing.T) {
 	}
 	if strings.Join(contents, "") != "hi" {
 		t.Errorf("streamed content = %q, want %q", strings.Join(contents, ""), "hi")
+	}
+	if !doneSentinel {
+		t.Error("stream never delivered the [DONE] sentinel")
 	}
 }
 
